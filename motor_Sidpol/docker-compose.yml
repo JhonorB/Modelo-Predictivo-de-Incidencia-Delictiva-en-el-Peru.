@@ -1,0 +1,36 @@
+services:
+  # ---------------------------------------------
+  # 1. Base de Datos (MySQL)
+  # ---------------------------------------------
+  db-sidpol:
+    image: mysql:8.0
+    container_name: mysql_sidpol_server
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: sidpoldb
+      MYSQL_USER: utp_admin
+      MYSQL_PASSWORD: utp_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  # ---------------------------------------------
+  # 2. Motor de IA (Python + FastAPI)
+  # ---------------------------------------------
+  motor_ia:
+    build: .
+    container_name: motor_sidpol_ia
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=development
+    restart: always
+    depends_on:
+      - db-sidpol
+
+# Aquí se define el volumen interno seguro para Fedora
+volumes:
+  mysql_data:
+    

@@ -1,0 +1,505 @@
+<div class="dashboard-layout">
+  <aside class="sidebar" [class.sidebar--compact]="config.sidebarCompact">
+    <div class="sidebar-header">
+      <div class="brand">
+        <span class="brand-icon">🛡️</span>
+        <span class="brand-text">SIDPOL</span>
+      </div>
+    </div>
+
+    <div class="sidebar-profile">
+      <div class="profile-avatar">
+        <img [src]="config.profileImage || (esAdmin ? 'assets/logo-admin.png' : 'assets/logo-user.png')" alt="Profile">
+        <span class="status-dot online"></span>
+      </div>
+      <div class="profile-info">
+        <span class="profile-name">{{ nombreUsuario }}</span>
+        <span class="profile-role" [class.admin]="esAdmin">
+          <span class="role-icon">{{ esAdmin ? config.roleIcon : config.userRoleIcon }}</span>
+          {{ esAdmin ? 'Administrador' : 'Usuario' }}
+        </span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a class="nav-item" [class.active]="selectedSection === 'dashboard'" (click)="selectSection('dashboard')">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">Dashboard</span>
+      </a>
+      <a class="nav-item" *ngIf="esAdmin" [class.active]="selectedSection === 'predicciones'" (click)="selectSection('predicciones')">
+        <span class="nav-icon">🔮</span>
+        <span class="nav-label">Predicciones</span>
+      </a>
+      <a class="nav-item" [class.active]="selectedSection === 'configuracion'" (click)="selectSection('configuracion')">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">Configuración</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="btn-logout" (click)="logout()">
+        <span>🚪</span>
+        <span>Cerrar Sesión</span>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 class="page-title">{{ pageIcon }} {{ pageTitle }}</h1>
+        <span class="page-subtitle">Sistema de Predicción Delictiva</span>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-date">{{ fechaActual | date:'EEEE, d MMM yyyy' }}</div>
+        <div class="topbar-badge" *ngIf="esAdmin">
+          <span class="badge-dot"></span>
+          Admin
+        </div>
+      </div>
+    </header>
+
+    <div class="content-body">
+
+      <!-- ==================== SECCIÓN DASHBOARD ==================== -->
+      @if (selectedSection === 'dashboard') {
+        <div class="section-content">
+          <div class="stats-grid" *ngIf="esAdmin && metricas">
+            <div class="stat-card stat-card--blue">
+              <div class="stat-icon">📈</div>
+              <div class="stat-info">
+                <span class="stat-value">{{ metricas?.resumen?.r2_score }}</span>
+                <span class="stat-label">R² Score</span>
+              </div>
+            </div>
+            <div class="stat-card stat-card--green">
+              <div class="stat-icon">📉</div>
+              <div class="stat-info">
+                <span class="stat-value">{{ metricas?.resumen?.mae }}</span>
+                <span class="stat-label">MAE</span>
+              </div>
+            </div>
+            <div class="stat-card stat-card--orange">
+              <div class="stat-icon">🎯</div>
+              <div class="stat-info">
+                <span class="stat-value">{{ metricas?.resumen?.rmse }}</span>
+                <span class="stat-label">RMSE</span>
+              </div>
+            </div>
+            <div class="stat-card stat-card--purple">
+              <div class="stat-icon">💯</div>
+              <div class="stat-info">
+                <span class="stat-value">{{ metricas?.resumen?.mape }}%</span>
+                <span class="stat-label">MAPE</span>
+              </div>
+            </div>
+          </div>
+
+          @if (prediccion) {
+            <section class="content-card" style="border-left:4px solid var(--primary-500);">
+              <div class="card-header">
+                <div class="card-header-left">
+                  <span class="card-icon">🇵🇪</span>
+                  <h2>{{ prediccion.tipo_periodo === 'MENSUAL' ? 'Proyección Mensual' : 'Proyección Anual' }} {{ prediccion.anio }}</h2>
+                </div>
+                <span class="card-badge card-badge--info">
+                  {{ prediccion.total_combinaciones || prediccion.total_departamentos || '—' }} combinaciones
+                </span>
+              </div>
+              <div class="card-body">
+                <div class="nacional-hero">
+                  <div class="nacional-valor">
+                    {{ (prediccion.total_general || prediccion.total_nacional || prediccion.total_delitos) | number:'1.0-0' }}
+                  </div>
+                  <div class="nacional-label">
+                    @if (prediccion.tipo_periodo === 'MENSUAL') {
+                      Delitos proyectados en {{ prediccion.mes_nombre }} de {{ prediccion.anio }}
+                    } @else if (prediccion.departamento_mas_critico && prediccion.tipo_mas_critico) {
+                      Delitos proyectados en todo el Perú para {{ prediccion.anio }}
+                    } @else if (prediccion.departamento) {
+                      Delitos en {{ prediccion.departamento }} para {{ prediccion.anio }}
+                    } @else {
+                      Delitos proyectados para {{ prediccion.anio }}
+                    }
+                    @if (prediccion.tipo_delito || prediccion.tipo_mas_critico) {
+                      <span class="nacional-tipo">({{ prediccion.tipo_delito || prediccion.tipo_mas_critico }})</span>
+                    }
+                  </div>
+                </div>
+                <div class="anual-grid" style="margin-top:1.25rem;">
+                  @if (prediccion.departamento_mas_critico) {
+                    <div class="anual-stat">
+                      <span class="anual-valor">{{ prediccion.departamento_mas_critico }}</span>
+                      <span class="anual-label">Departamento más crítico</span>
+                    </div>
+                  }
+                  @if (prediccion.tipo_mas_critico) {
+                    <div class="anual-stat">
+                      <span class="anual-valor">{{ prediccion.tipo_mas_critico }}</span>
+                      <span class="anual-label">Tipo predominante</span>
+                    </div>
+                  }
+                  @if (prediccion.mes_mas_critico && prediccion.tipo_periodo !== 'MENSUAL') {
+                    <div class="anual-stat">
+                      <span class="anual-valor">{{ prediccion.mes_mas_critico }}</span>
+                      <span class="anual-label">Mes pico</span>
+                    </div>
+                  }
+                  @if (prediccion.nivel_alerta) {
+                    <div class="anual-stat">
+                      <span class="card-badge" [ngClass]="'card-badge--' + (prediccion.nivel_alerta || '').toLowerCase()">
+                        {{ prediccion.nivel_alerta }}
+                      </span>
+                    </div>
+                  }
+                </div>
+                <p class="anual-mensaje">{{ prediccion.mensaje_ejecutivo }}</p>
+              </div>
+            </section>
+          } @else if (cargando) {
+            <section class="content-card">
+              <div class="card-body" style="text-align:center;padding:2rem;">
+                <span style="font-size:2rem;">🇵🇪</span>
+                <p style="margin-top:0.5rem;color:#64748b;">Calculando proyección {{ filtro.periodo === ANUAL ? 'anual' : 'mensual' }} {{ filtro.anio }}...</p>
+                <p style="font-size:0.8rem;color:#94a3b8;">Procesando combinaciones de departamentos, tipos de delito y meses</p>
+              </div>
+            </section>
+          }
+
+          <section class="content-card charts-card">
+            <div class="card-header">
+              <div class="card-header-left">
+                <span class="card-icon">📊</span>
+                <h2>Dashboard Analítico</h2>
+              </div>
+              <span class="card-badge card-badge--info">Visualizaciones</span>
+            </div>
+            <div class="card-body">
+              <div class="charts-grid">
+                <div class="chart-item chart-item--half">
+                  <h3 class="chart-title">🐾 Incidencia por Departamento</h3>
+                  <div #graficoDepartamentos class="chart-container"></div>
+                </div>
+                <div class="chart-item chart-item--half">
+                  <h3 class="chart-title">🦁 Incidencia por Tipo de Delito</h3>
+                  <div #graficoDelitos class="chart-container"></div>
+                </div>
+                <div class="chart-item chart-item--full">
+                  <h3 class="chart-title">🐺 Tendencia Anual</h3>
+                  <div #graficoTendencia class="chart-container"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      }
+
+      <!-- ==================== SECCIÓN PREDICCIONES (Admin) ==================== -->
+      @if (selectedSection === 'predicciones' && esAdmin) {
+        <div class="section-content">
+          <div class="section-hero">
+            <div class="hero-icon">🔮</div>
+            <div class="hero-text">
+              <h2>Motor de Predicción {{ config.roleIcon }}</h2>
+              <p>Configura los parámetros y genera predicciones delictivas usando el modelo ML</p>
+            </div>
+          </div>
+
+          <div class="predictor-layout">
+            <div class="predictor-main">
+              <section class="content-card">
+                <div class="card-header">
+                  <div class="card-header-left">
+                    <span class="card-icon">⚙️</span>
+                    <h2>Parámetros de Predicción</h2>
+                  </div>
+                  <span class="card-badge">app.py</span>
+                </div>
+                <div class="card-body">
+                  <div class="filtros-grid">
+                    <div class="filtro-group">
+                      <label>Año</label>
+                      <select [(ngModel)]="filtro.anio">
+                        <option *ngFor="let a of anioOptions" [value]="a">{{ a }}</option>
+                      </select>
+                    </div>
+                    <div class="filtro-group">
+                      <label>Periodo</label>
+                      <select [(ngModel)]="filtro.periodo">
+                        <option [value]="ANUAL">📅 Anual</option>
+                        <option *ngFor="let m of mesesOptions" [value]="m">{{ getNombreMes(m) }}</option>
+                      </select>
+                    </div>
+                    <div class="filtro-group">
+                      <label>Departamento</label>
+                      <select [(ngModel)]="filtro.dpto_hecho_new">
+                        <option [value]="TODO_EL_PERU">🌍 Todo el Perú</option>
+                        <option *ngFor="let d of catalogos?.departamentos || []" [value]="d">{{ d }}</option>
+                      </select>
+                    </div>
+                    <div class="filtro-group">
+                      <label>Tipo de Delito</label>
+                      <select [(ngModel)]="filtro.es_delito_x">
+                        <option [value]="TODOS">📋 Todos</option>
+                        <option *ngFor="let t of catalogos?.tipos_delito || []" [value]="t">{{ t }}</option>
+                      </select>
+                    </div>
+                    <div class="filtro-actions">
+                      <button class="btn-primary" (click)="ejecutarPrediccion()" [disabled]="cargando">
+                        <span>{{ cargando ? '⏳' : '🚀' }}</span>
+                        <span>{{ cargando ? 'Ejecutando modelo...' : 'Ejecutar Predicción' }}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              @if (prediccion) {
+                <section class="content-card resultado-card">
+                  <div class="card-header">
+                    <div class="card-header-left">
+                      <span class="card-icon">📋</span>
+                      <h2>Resultado de la Predicción</h2>
+                    </div>
+                    <span class="nivel-badge" [ngClass]="'nivel--' + (alertaClase || '').toLowerCase()">
+                      <span class="nivel-dot"></span>
+                      {{ prediccion.nivel_alerta }}
+                    </span>
+                  </div>
+                  <div class="card-body">
+                    <div class="resultado-alerta" [ngClass]="'alerta--' + (alertaClase || '').toLowerCase()">
+                      <div class="alerta-content">
+                        <div class="alerta-valor">
+                          <span class="valor-numero">{{ (prediccion.total_general || prediccion.total_nacional || prediccion.total_delitos || prediccion.prediccion_total_delitos) | number:'1.0-0' }}</span>
+                          <span class="valor-label">delitos proyectados</span>
+                        </div>
+                        <p class="alerta-mensaje">{{ prediccion.mensaje_ejecutivo }}</p>
+                      </div>
+                    </div>
+                    @if (prediccion.desglose_departamentos) {
+                      <div style="margin-bottom:1rem;">
+                        <h4 style="font-size:0.85rem;font-weight:600;margin:0 0 0.5rem;color:var(--text-secondary);">Desglose por Departamento</h4>
+                        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+                          @for (item of prediccion.desglose_departamentos | keyvalue; track item.key) {
+                            <span style="font-size:0.75rem;background:var(--body-bg);padding:0.25rem 0.5rem;border-radius:4px;border:1px solid var(--border-color);">
+                              {{ item.key }}: {{ item.value | number:'1.0-0' }}
+                            </span>
+                          }
+                        </div>
+                      </div>
+                    }
+                    @if (prediccion.desglose_tipos) {
+                      <div style="margin-bottom:1rem;">
+                        <h4 style="font-size:0.85rem;font-weight:600;margin:0 0 0.5rem;color:var(--text-secondary);">Desglose por Tipo</h4>
+                        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+                          @for (item of prediccion.desglose_tipos | keyvalue; track item.key) {
+                            <span style="font-size:0.75rem;background:var(--body-bg);padding:0.25rem 0.5rem;border-radius:4px;border:1px solid var(--border-color);">
+                              {{ item.key }}: {{ item.value | number:'1.0-0' }}
+                            </span>
+                          }
+                        </div>
+                      </div>
+                    }
+                    <div #graficoPrediccion class="chart-container"></div>
+                  </div>
+                </section>
+              }
+            </div>
+
+            <div class="predictor-sidebar">
+              <div class="content-card info-card">
+                <div class="card-header">
+                  <div class="card-header-left">
+                    <span class="card-icon">ℹ️</span>
+                    <h2>Info del Modelo</h2>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <div class="info-list">
+                    <div class="info-item">
+                      <span class="info-label">Motor</span>
+                      <span class="info-value">app.py</span>
+                    </div>
+                    <div class="info-item">
+                      <span class="info-label">Modelo</span>
+                      <span class="info-value">Random Forest</span>
+                    </div>
+                    <div class="info-item">
+                      <span class="info-label">R² Score</span>
+                      <span class="info-value">{{ metricas?.resumen?.r2_score || '—' }}</span>
+                    </div>
+                    <div class="info-item">
+                      <span class="info-label">Precisión</span>
+                      <span class="info-value">{{ metricas?.resumen?.precision ? metricas.resumen.precision + '%' : '—' }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="content-card info-card">
+                <div class="card-header">
+                  <div class="card-header-left">
+                    <span class="card-icon">📌</span>
+                    <h2>Última Consulta</h2>
+                  </div>
+                </div>
+                <div class="card-body">
+                  @if (prediccion) {
+                    <div class="last-query">
+                      <div class="query-item">
+                        <span class="query-label">Departamento</span>
+                        <span class="query-value">{{ filtro.dpto_hecho_new === TODO_EL_PERU ? '🌍 Todo el Perú' : filtro.dpto_hecho_new }}</span>
+                      </div>
+                      <div class="query-item">
+                        <span class="query-label">Periodo</span>
+                        <span class="query-value">{{ filtro.periodo === ANUAL ? '📅 Anual' : '📅 ' + getNombreMes(+filtro.periodo) }} / {{ filtro.anio }}</span>
+                      </div>
+                      <div class="query-item">
+                        <span class="query-label">Tipo</span>
+                        <span class="query-value">{{ filtro.es_delito_x === TODOS ? '📋 Todos' : filtro.es_delito_x }}</span>
+                      </div>
+                    </div>
+                  } @else {
+                    <p class="info-empty">Aún no has realizado ninguna consulta</p>
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- ==================== SECCIÓN CONFIGURACIÓN ==================== -->
+      @if (selectedSection === 'configuracion') {
+        <div class="section-content">
+          <div class="section-hero">
+            <div class="hero-icon">⚙️</div>
+            <div class="hero-text">
+              <h2>Configuración del Sistema</h2>
+              <p>Personaliza la apariencia y preferencias de tu panel</p>
+            </div>
+          </div>
+
+          <div class="config-grid">
+            <section class="content-card">
+              <div class="card-header">
+                <div class="card-header-left">
+                  <span class="card-icon">👤</span>
+                  <h2>Foto de Perfil</h2>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="config-profile">
+                  <div class="config-avatar-preview">
+                    <img [src]="config.profileImage || (esAdmin ? 'assets/logo-admin.png' : 'assets/logo-user.png')" alt="Preview">
+                  </div>
+                  <div class="config-avatar-actions">
+                    <label class="btn-upload">
+                      <span>📁</span>
+                      <span>Subir imagen</span>
+                      <input type="file" accept="image/*" (change)="onProfileImageChange($event)" hidden>
+                    </label>
+                    <button class="btn-reset" (click)="resetProfileImage()">
+                      <span>🔄</span>
+                      <span>Restablecer</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="content-card">
+              <div class="card-header">
+                <div class="card-header-left">
+                  <span class="card-icon">{{ esAdmin ? config.roleIcon : config.userRoleIcon }}</span>
+                  <h2>Icono de Rol</h2>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="config-icons">
+                  <p class="config-desc">Elige un icono para tu perfil:</p>
+                  @if (esAdmin) {
+                    <div class="icon-grid">
+                      @for (icon of availableAdminIcons; track icon) {
+                        <button class="icon-option" [class.selected]="config.roleIcon === icon" (click)="config.roleIcon = icon; guardarConfig()">
+                          <span>{{ icon }}</span>
+                        </button>
+                      }
+                    </div>
+                  } @else {
+                    <div class="icon-grid">
+                      @for (icon of availableUserIcons; track icon) {
+                        <button class="icon-option" [class.selected]="config.userRoleIcon === icon" (click)="config.userRoleIcon = icon; guardarConfig()">
+                          <span>{{ icon }}</span>
+                        </button>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            </section>
+
+            <section class="content-card">
+              <div class="card-header">
+                <div class="card-header-left">
+                  <span class="card-icon">🎨</span>
+                  <h2>Apariencia</h2>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="config-theme">
+                  <div class="config-item">
+                    <label>Color del tema</label>
+                    <div class="color-picker-row">
+                      <input type="color" [(ngModel)]="config.themeColor" (change)="guardarConfig()" class="color-input">
+                      <span class="color-value">{{ config.themeColor }}</span>
+                    </div>
+                  </div>
+                  <div class="config-item">
+                    <label>Sidebar compacta</label>
+                    <div class="toggle-row">
+                      <span class="toggle-desc" *ngIf="!config.sidebarCompact">Sidebar expandida</span>
+                      <span class="toggle-desc" *ngIf="config.sidebarCompact">Sidebar compacta</span>
+                      <label class="toggle-switch">
+                        <input type="checkbox" [(ngModel)]="config.sidebarCompact" (change)="guardarConfig()">
+                        <span class="toggle-slider"></span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="content-card">
+              <div class="card-header">
+                <div class="card-header-left">
+                  <span class="card-icon">🔔</span>
+                  <h2>Notificaciones</h2>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="config-alerts">
+                  <div class="config-item">
+                    <label>Notificaciones del sistema</label>
+                    <label class="toggle-switch">
+                      <input type="checkbox" [(ngModel)]="config.notificaciones" (change)="guardarConfig()">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                  <div class="config-item">
+                    <label>Sonido de alerta</label>
+                    <label class="toggle-switch">
+                      <input type="checkbox" [(ngModel)]="config.sonidoAlerta" (change)="guardarConfig()">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      }
+
+    </div>
+  </main>
+</div>

@@ -1,0 +1,27 @@
+# ==========================================
+# MOTOR SIDPOL - DEPENDENCIAS DEL PROYECTO
+# ==========================================
+
+# 1. Framework de la API (Microservicio)
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+pydantic>=2.3.0
+
+# 2. Machine Learning y Preprocesamiento
+scikit-learn>=1.3.0
+imbalanced-learn>=0.11.0
+joblib>=1.3.0
+
+# 3. Manipulación de Datos
+pandas>=2.0.0
+numpy>=1.24.0
+
+# 4. Lectura de Excel y Gráficos (Para tu script_modelo_sidpol.py)
+openpyxl>=3.1.2
+matplotlib>=3.7.0
+seaborn >=0.12.0
+
+# 5. Gráficos JSON para Plotly.js en Angular
+plotly>=5.18.0
+# 6. Entorno y Configuración
+python-dotenv>=1.0.0
