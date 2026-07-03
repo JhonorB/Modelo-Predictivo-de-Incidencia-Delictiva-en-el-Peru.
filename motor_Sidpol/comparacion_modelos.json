@@ -1,0 +1,71 @@
+{
+  "random_forest": {
+    "r2_score": 0.9803,
+    "mae": 49.01,
+    "rmse": 225.01,
+    "mape": 23.06,
+    "tiempo_inferencia_ms": 88.075,
+    "tiempo_entrenamiento_seg": 31.74,
+    "best_params": {
+      "bootstrap": true,
+      "ccp_alpha": 0.0,
+      "criterion": "squared_error",
+      "max_depth": null,
+      "max_features": 1.0,
+      "max_leaf_nodes": null,
+      "max_samples": null,
+      "min_impurity_decrease": 0.0,
+      "min_samples_leaf": 2,
+      "min_samples_split": 2,
+      "min_weight_fraction_leaf": 0.0,
+      "monotonic_cst": null,
+      "n_estimators": 300,
+      "n_jobs": -1,
+      "oob_score": false,
+      "random_state": 42,
+      "verbose": 0,
+      "warm_start": false
+    }
+  },
+  "regresion_lineal": {
+    "r2_score": 0.9186,
+    "mae": 164.79,
+    "rmse": 457.34,
+    "mape": 60.89,
+    "tiempo_inferencia_ms": 0.2364,
+    "tiempo_entrenamiento_ms": 11.96
+  },
+  "fairness": {
+    "mae_por_departamento": {
+      "CUSCO": 37.31,
+      "PROV. CONST. DEL CALLAO": 48.14,
+      "LAMBAYEQUE": 44.49,
+      "HUANUCO": 23.01,
+      "HUANCAVELICA": 10.74,
+      "CAJAMARCA": 26.94,
+      "PUNO": 40.89,
+      "MOQUEGUA": 15.95,
+      "REGION LIMA": 30.93,
+      "TACNA": 22.16,
+      "PIURA": 61.53,
+      "AYACUCHO": 18.49,
+      "JUNIN": 38.21,
+      "LA LIBERTAD": 65.5,
+      "ICA": 33.13,
+      "AREQUIPA": 95.8,
+      "TUMBES": 19.52,
+      "PASCO": 12.67,
+      "LORETO": 32.86,
+      "MADRE DE DIOS": 14.59,
+      "LIMA METROPOLITANA": 443.19,
+      "UCAYALI": 29.71,
+      "AMAZONAS": 17.58,
+      "ANCASH": 46.54,
+      "APURIMAC": 18.89,
+      "SAN MARTIN": 19.64
+    },
+    "std_mae_departamental": 81.11,
+    "std_mae_estimado_sin_smote": 209.27,
+    "reduccion_dispersion_porcentaje": 61.2
+  }
+}

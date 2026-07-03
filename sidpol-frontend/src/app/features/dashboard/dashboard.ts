@@ -27,7 +27,9 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   selectedSection: string = 'dashboard';
 
   anioActual = new Date().getFullYear();
-  anioOptions: number[] = Array.from({ length: 2031 - 2022 }, (_, i) => 2022 + i);
+  anioOptions: number[] = Array.from({ length: 2036 - 2018 }, (_, i) => 2018 + i);
+  tendenciaOptions: number[] = Array.from({ length: 2036 - 2026 }, (_, i) => 2026 + i);
+  tendenciaHasta: number = 2028;
   mesesOptions = [1,2,3,4,5,6,7,8,9,10,11,12];
   mesesNombres = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                   'Julio','Agosto','Setiembre','Octubre','Noviembre','Diciembre'];
@@ -48,6 +50,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   metricas: any = null;
   graficos: any = null;
   catalogos: any = null;
+  comparacion: any = null;
   esAdmin = false;
   nombreUsuario = '';
 
@@ -92,6 +95,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
     if (this.esAdmin) {
       this.cargarMetricas();
+      this.cargarComparacion();
     }
 
     setTimeout(() => this.ejecutarPrediccion(), 800);
@@ -133,6 +137,9 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   selectSection(section: string): void {
     this.selectedSection = section;
     setTimeout(() => this.renderizarGraficosPlotly(), 300);
+    if (section === 'dashboard') {
+      setTimeout(() => this.cargarTendenciaDinamica(), 300);
+    }
     if (section === 'predicciones') {
       setTimeout(() => this.renderizarPrediccion(this.prediccion), 300);
     }
@@ -170,12 +177,26 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     });
   }
 
+  cargarComparacion(): void {
+    this.predService.obtenerComparacion().subscribe({
+      next: (data) => { this.comparacion = data; },
+      error: () => {}
+    });
+  }
+
   cargarGraficos(): void {
     this.predService.obtenerGraficos().subscribe({
       next: (data) => {
         this.graficos = data;
         this.renderizarGraficosPlotly();
       },
+      error: () => {}
+    });
+  }
+
+  cargarTendenciaDinamica(): void {
+    this.predService.obtenerTendencia(this.tendenciaHasta).subscribe({
+      next: (data) => this.renderizarTendenciaDinamica(data),
       error: () => {}
     });
   }
@@ -192,12 +213,16 @@ export class DashboardComponent implements OnInit, AfterViewInit {
           this.graficos.por_tipo_delito.data,
           this.graficos.por_tipo_delito.layout);
       }
-      if (this.graficos?.tendencia_anual && this.graficoTendencia) {
-        Plotly.react(this.graficoTendencia.nativeElement,
-          this.graficos.tendencia_anual.data,
-          this.graficos.tendencia_anual.layout);
-      }
     }, 500);
+    this.cargarTendenciaDinamica();
+  }
+
+  renderizarTendenciaDinamica(data: any): void {
+    setTimeout(() => {
+      if (data?.data && data?.layout && this.graficoTendencia) {
+        Plotly.react(this.graficoTendencia.nativeElement, data.data, data.layout);
+      }
+    }, 300);
   }
 
   ejecutarPrediccion(): void {

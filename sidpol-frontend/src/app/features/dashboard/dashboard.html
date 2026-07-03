@@ -126,34 +126,72 @@
                     }
                   </div>
                 </div>
-                <div class="anual-grid" style="margin-top:1.25rem;">
-                  @if (prediccion.departamento_mas_critico) {
-                    <div class="anual-stat">
-                      <span class="anual-valor">{{ prediccion.departamento_mas_critico }}</span>
-                      <span class="anual-label">Departamento más crítico</span>
+                <div class="resultado-stats">
+                  @if (prediccion.top_departamentos && prediccion.top_departamentos.length) {
+                    <div class="rs-card rs-card--departamentos">
+                      <div class="rs-card-header">
+                        <span class="rs-icon">🏆</span>
+                        <span class="rs-title">Top Departamentos</span>
+                      </div>
+                      <div class="rs-card-body">
+                        <div class="top-list">
+                          @for (dpto of prediccion.top_departamentos; track $index) {
+                            <div class="top-item" [class.top-item--first]="$index === 0">
+                              <span class="top-pos">{{ $index + 1 }}</span>
+                              <span class="top-nombre">{{ dpto.departamento }}</span>
+                              <span class="top-valor">{{ dpto.incidencias | number:'1.0-0' }}</span>
+                              <div class="top-bar-track">
+                                <div class="top-bar-fill" [style.width.%]="100 - ($index * 18)"></div>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      </div>
                     </div>
                   }
                   @if (prediccion.tipo_mas_critico) {
-                    <div class="anual-stat">
-                      <span class="anual-valor">{{ prediccion.tipo_mas_critico }}</span>
-                      <span class="anual-label">Tipo predominante</span>
+                    <div class="rs-card rs-card--tipo">
+                      <div class="rs-card-header">
+                        <span class="rs-icon">📋</span>
+                        <span class="rs-title">Tipo Predominante</span>
+                      </div>
+                      <div class="rs-card-body rs-card-body--center">
+                        <span class="rs-value">{{ prediccion.tipo_mas_critico }}</span>
+                      </div>
                     </div>
                   }
                   @if (prediccion.mes_mas_critico && prediccion.tipo_periodo !== 'MENSUAL') {
-                    <div class="anual-stat">
-                      <span class="anual-valor">{{ prediccion.mes_mas_critico }}</span>
-                      <span class="anual-label">Mes pico</span>
-                    </div>
-                  }
-                  @if (prediccion.nivel_alerta) {
-                    <div class="anual-stat">
-                      <span class="card-badge" [ngClass]="'card-badge--' + (prediccion.nivel_alerta || '').toLowerCase()">
-                        {{ prediccion.nivel_alerta }}
-                      </span>
+                    <div class="rs-card rs-card--mes">
+                      <div class="rs-card-header">
+                        <span class="rs-icon">📅</span>
+                        <span class="rs-title">Mes Pico</span>
+                      </div>
+                      <div class="rs-card-body rs-card-body--center">
+                        <span class="rs-value">{{ prediccion.mes_mas_critico }}</span>
+                      </div>
                     </div>
                   }
                 </div>
-                <p class="anual-mensaje">{{ prediccion.mensaje_ejecutivo }}</p>
+                @if (prediccion.nivel_alerta) {
+                  <div class="alerta-banner" [ngClass]="'alerta-banner--' + (prediccion.nivel_alerta || '').toLowerCase()">
+                    <span class="alerta-banner-icon">
+                      @switch (prediccion.nivel_alerta) {
+                        @case ('BAJO') { ✅ }
+                        @case ('MEDIO') { ⚠️ }
+                        @case ('ALTO') { 🔴 }
+                        @case ('CRITICO') { 🚨 }
+                      }
+                    </span>
+                    <div class="alerta-banner-content">
+                      <span class="alerta-banner-label">Nivel de Alerta</span>
+                      <span class="alerta-banner-value">{{ prediccion.nivel_alerta }}</span>
+                    </div>
+                  </div>
+                }
+                <p class="anual-mensaje">
+                  <span class="mensaje-icon">💡</span>
+                  <span>{{ prediccion.mensaje_ejecutivo }}</span>
+                </p>
               </div>
             </section>
           } @else if (cargando) {
@@ -185,12 +223,95 @@
                   <div #graficoDelitos class="chart-container"></div>
                 </div>
                 <div class="chart-item chart-item--full">
-                  <h3 class="chart-title">🐺 Tendencia Anual</h3>
+                  <div class="chart-title-row">
+                    <h3 class="chart-title">🐺 Tendencia Anual</h3>
+                    <div class="chart-controls">
+                      <label style="font-size:0.8rem;margin-right:0.4rem;">Proyectar hasta:</label>
+                      <select [(ngModel)]="tendenciaHasta" (change)="cargarTendenciaDinamica()" style="padding:0.25rem 0.5rem;border-radius:4px;border:1px solid var(--border-color);background:var(--card-bg);font-size:0.85rem;">
+                        <option *ngFor="let a of tendenciaOptions" [value]="a">{{ a }}</option>
+                      </select>
+                    </div>
+                  </div>
                   <div #graficoTendencia class="chart-container"></div>
                 </div>
               </div>
             </div>
           </section>
+
+          @if (esAdmin && comparacion) {
+            <section class="content-card comparacion-card">
+              <div class="card-header">
+                <div class="card-header-left">
+                  <span class="card-icon">⚖️</span>
+                  <h2>Comparación de Modelos</h2>
+                </div>
+                <span class="card-badge card-badge--info">RF vs Regresión Lineal</span>
+              </div>
+              <div class="card-body">
+                <p class="comparacion-desc">El modelo Random Forest fue seleccionado como algoritmo definitivo, superando significativamente a la Regresión Lineal en todas las métricas de evaluación.</p>
+                <div class="comparacion-tabla-wrapper">
+                  <table class="comparacion-tabla">
+                    <thead>
+                      <tr>
+                        <th>Métrica</th>
+                        <th class="col-rf">Random Forest</th>
+                        <th class="col-lr">Regresión Lineal</th>
+                        <th class="col-ganancia">Mejora</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td class="metric-name">R² Score</td>
+                        <td class="col-rf">{{ comparacion.random_forest.r2_score }}</td>
+                        <td class="col-lr">{{ comparacion.regresion_lineal.r2_score }}</td>
+                        <td class="col-ganancia ganancia-positiva">{{ ((comparacion.random_forest.r2_score - comparacion.regresion_lineal.r2_score) / comparacion.regresion_lineal.r2_score * 100) | number:'1.1-1' }}%</td>
+                      </tr>
+                      <tr>
+                        <td class="metric-name">MAE (delitos)</td>
+                        <td class="col-rf">{{ comparacion.random_forest.mae | number:'1.2-2' }}</td>
+                        <td class="col-lr">{{ comparacion.regresion_lineal.mae | number:'1.2-2' }}</td>
+                        <td class="col-ganancia ganancia-positiva">{{ ((comparacion.regresion_lineal.mae - comparacion.random_forest.mae) / comparacion.regresion_lineal.mae * 100) | number:'1.1-1' }}%</td>
+                      </tr>
+                      <tr>
+                        <td class="metric-name">RMSE (delitos)</td>
+                        <td class="col-rf">{{ comparacion.random_forest.rmse | number:'1.2-2' }}</td>
+                        <td class="col-lr">{{ comparacion.regresion_lineal.rmse | number:'1.2-2' }}</td>
+                        <td class="col-ganancia ganancia-positiva">{{ ((comparacion.regresion_lineal.rmse - comparacion.random_forest.rmse) / comparacion.regresion_lineal.rmse * 100) | number:'1.1-1' }}%</td>
+                      </tr>
+                      <tr>
+                        <td class="metric-name">MAPE (%)</td>
+                        <td class="col-rf">{{ comparacion.random_forest.mape | number:'1.2-2' }}</td>
+                        <td class="col-lr">{{ comparacion.regresion_lineal.mape | number:'1.2-2' }}</td>
+                        <td class="col-ganancia ganancia-positiva">{{ ((comparacion.regresion_lineal.mape - comparacion.random_forest.mape) / comparacion.regresion_lineal.mape * 100) | number:'1.1-1' }}%</td>
+                      </tr>
+                      <tr>
+                        <td class="metric-name">Inferencia</td>
+                        <td class="col-rf">{{ comparacion.random_forest.tiempo_inferencia_ms }} ms</td>
+                        <td class="col-lr">{{ comparacion.regresion_lineal.tiempo_inferencia_ms }} ms</td>
+                        <td class="col-ganancia">—</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                @if (comparacion.fairness) {
+                  <div class="fairness-section">
+                    <h3 class="fairness-title">⚖️ Auditoría de Equidad Algorítmica (Fairness)</h3>
+                    <p class="fairness-desc">Tras la aplicación de SMOTE, la dispersión del error entre departamentos se redujo significativamente:</p>
+                    <div class="fairness-grid">
+                      <div class="fairness-stat">
+                        <span class="fairness-valor">{{ comparacion.fairness.reduccion_dispersion_porcentaje }}%</span>
+                        <span class="fairness-label">Reducción de dispersión</span>
+                      </div>
+                      <div class="fairness-stat">
+                        <span class="fairness-valor">{{ comparacion.fairness.std_mae_departamental }}</span>
+                        <span class="fairness-label">Desviación estándar MAE</span>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </section>
+          }
         </div>
       }
 
@@ -219,27 +340,27 @@
                   <div class="filtros-grid">
                     <div class="filtro-group">
                       <label>Año</label>
-                      <select [(ngModel)]="filtro.anio">
+                      <select [(ngModel)]="filtro.anio" (change)="ejecutarPrediccion()">
                         <option *ngFor="let a of anioOptions" [value]="a">{{ a }}</option>
                       </select>
                     </div>
                     <div class="filtro-group">
                       <label>Periodo</label>
-                      <select [(ngModel)]="filtro.periodo">
+                      <select [(ngModel)]="filtro.periodo" (change)="ejecutarPrediccion()">
                         <option [value]="ANUAL">📅 Anual</option>
                         <option *ngFor="let m of mesesOptions" [value]="m">{{ getNombreMes(m) }}</option>
                       </select>
                     </div>
                     <div class="filtro-group">
                       <label>Departamento</label>
-                      <select [(ngModel)]="filtro.dpto_hecho_new">
+                      <select [(ngModel)]="filtro.dpto_hecho_new" (change)="ejecutarPrediccion()">
                         <option [value]="TODO_EL_PERU">🌍 Todo el Perú</option>
                         <option *ngFor="let d of catalogos?.departamentos || []" [value]="d">{{ d }}</option>
                       </select>
                     </div>
                     <div class="filtro-group">
                       <label>Tipo de Delito</label>
-                      <select [(ngModel)]="filtro.es_delito_x">
+                      <select [(ngModel)]="filtro.es_delito_x" (change)="ejecutarPrediccion()">
                         <option [value]="TODOS">📋 Todos</option>
                         <option *ngFor="let t of catalogos?.tipos_delito || []" [value]="t">{{ t }}</option>
                       </select>
@@ -272,6 +393,27 @@
                         <div class="alerta-valor">
                           <span class="valor-numero">{{ (prediccion.total_general || prediccion.total_nacional || prediccion.total_delitos || prediccion.prediccion_total_delitos) | number:'1.0-0' }}</span>
                           <span class="valor-label">delitos proyectados</span>
+                        </div>
+                        <div class="alerta-resumen">
+                          @if (prediccion.tipo_mas_critico) {
+                            <div class="alerta-resumen-item">
+                              <span class="resumen-icon">📋</span>
+                              <span class="resumen-label">Tipo</span>
+                              <span class="resumen-value">{{ prediccion.tipo_mas_critico }}</span>
+                            </div>
+                          }
+                          @if (prediccion.mes_mas_critico && prediccion.tipo_periodo !== 'MENSUAL') {
+                            <div class="alerta-resumen-item">
+                              <span class="resumen-icon">📅</span>
+                              <span class="resumen-label">Mes pico</span>
+                              <span class="resumen-value">{{ prediccion.mes_mas_critico }}</span>
+                            </div>
+                          }
+                          <div class="alerta-resumen-item">
+                            <span class="resumen-icon">🚨</span>
+                            <span class="resumen-label">Alerta</span>
+                            <span class="resumen-value" [ngStyle]="{color: alertaClase === 'CRITICO' ? '#ef4444' : alertaClase === 'ALTO' ? '#f97316' : alertaClase === 'MEDIO' ? '#f59e0b' : '#10b981'}">{{ prediccion.nivel_alerta }}</span>
+                          </div>
                         </div>
                         <p class="alerta-mensaje">{{ prediccion.mensaje_ejecutivo }}</p>
                       </div>

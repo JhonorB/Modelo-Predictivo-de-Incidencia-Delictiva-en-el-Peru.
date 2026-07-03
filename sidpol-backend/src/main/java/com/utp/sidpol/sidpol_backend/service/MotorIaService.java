@@ -25,6 +25,8 @@ public class MotorIaService {
     private final String GRAFICOS_URL = MOTOR_IA_BASE + "/model/graficos";
     private final String CATALOGOS_URL = MOTOR_IA_BASE + "/catalogos";
     private final String GENERAL_URL = MOTOR_IA_BASE + "/predict/general";
+    private final String TENDENCIA_URL = MOTOR_IA_BASE + "/model/tendencia";
+    private final String COMPARACION_URL = MOTOR_IA_BASE + "/model/comparacion";
 
     public PrediccionResponseDTO obtenerPrediccion(PrediccionRequestDTO requestDTO) {
         try {
@@ -66,6 +68,27 @@ public class MotorIaService {
             return response.getBody();
         } catch (RestClientException e) {
             throw new RuntimeException("Error al obtener catálogos del Motor de IA: " + e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> obtenerTendencia(int hasta) {
+        try {
+            String url = TENDENCIA_URL + "?hasta=" + hasta;
+            ResponseEntity<Map<String, Object>> response = restTemplate.getForEntity(url, (Class<Map<String, Object>>) (Class<?>) Map.class);
+            return response.getBody();
+        } catch (RestClientException e) {
+            throw new RuntimeException("Error al obtener tendencia del Motor de IA: " + e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> obtenerComparacion() {
+        try {
+            ResponseEntity<Map<String, Object>> response = restTemplate.getForEntity(COMPARACION_URL, (Class<Map<String, Object>>) (Class<?>) Map.class);
+            return response.getBody();
+        } catch (RestClientException e) {
+            throw new RuntimeException("Error al obtener comparación de modelos del Motor de IA: " + e.getMessage());
         }
     }
 

@@ -61,6 +61,9 @@ logger = logging.getLogger("SIDPOL.API.Core")
 MODEL_PATH: Path = Path("pipeline_sidpol.pkl")
 API_PREFIX: str = "/api/v1"
 VERSION: str = "4.0.0-Enterprise"
+AÑO_BASE: int = 2022
+ULTIMO_ANIO_ENTRENAMIENTO: int = 2026
+TASA_CRECIMIENTO: float = 0.0307  # 3.07% tendencia histórica 2018-2025 (excluye 2020 COVID)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. CATÁLOGOS DE DATOS (Alineados al Dataset SIDPOL Oficial)
@@ -173,6 +176,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         logger.warning(f"⚠️ No se encontró '{GRAFICOS_PATH}'. Los gráficos no estarán disponibles.")
 
+    if COMPARACION_PATH.exists():
+        try:
+            with open(COMPARACION_PATH, 'r', encoding='utf-8') as f:
+                _model_registry["comparacion"] = json.load(f)
+            logger.info("✅ Comparación de modelos cargada exitosamente.")
+        except Exception as exc:
+            logger.error(f"Error al cargar comparación: {exc}")
+    else:
+        logger.warning(f"⚠️ No se encontró '{COMPARACION_PATH}'. La comparación no estará disponible.")
+
     yield # El servidor FastAPI cede el control para escuchar peticiones HTTP
 
     # Limpieza de memoria al apagar el contenedor
@@ -183,6 +196,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 # Rutas de archivos auxiliares
 METRICS_PATH: Path = Path("metricas_sidpol.json")
 GRAFICOS_PATH: Path = Path("graficos_sidpol.json")
+COMPARACION_PATH: Path = Path("comparacion_modelos.json")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 5. CONFIGURACIÓN DE LA INSTANCIA FASTAPI
@@ -238,8 +252,8 @@ class RequestIncidencia(BaseModel):
     """
     anio: int = Field(
         ...,
-        ge=2022,
-        le=2030,
+        ge=2018,
+        le=2035,
         description="Año temporal a proyectar.",
         examples=[2026],
     )
@@ -284,7 +298,7 @@ class RequestGeneral(BaseModel):
     Si es_delito_x se omite o es 'TODOS', agrega los 5 tipos de delito.
     Si mes se omite, agrega los 12 meses; si se especifica, solo ese mes.
     """
-    anio: int = Field(..., ge=2022, le=2030, description="Año a proyectar.", examples=[2026])
+    anio: int = Field(..., ge=2018, le=2035, description="Año a proyectar.", examples=[2026])
     dpto_hecho_new: Optional[str] = Field(None, description="Departamento o 'TODO' para todos.", examples=["LIMA METROPOLITANA"])
     es_delito_x: Optional[str] = Field(None, description="Tipo de delito o 'TODOS' para todos.", examples=["1.Delitos"])
     mes: Optional[int] = Field(None, ge=1, le=12, description="Mes específico (1-12) o None para anual.", examples=[11])
@@ -325,14 +339,25 @@ def calcular_nivel_alerta(prediccion: float) -> str:
     elif prediccion < 800: return "ALTO"
     else: return "CRITICO"
 
+def aplicar_tendencia_futura(valor: float, anio_real: int) -> float:
+    """
+    Aplica un factor de crecimiento compuesto para años más allá del último
+    año de entrenamiento (2026). Soluciona la limitación de Random Forest
+    de no poder extrapolar tendencias temporales.
+    """
+    anios_futuro = max(0, anio_real - ULTIMO_ANIO_ENTRENAMIENTO)
+    if anios_futuro > 0:
+        valor *= (1 + TASA_CRECIMIENTO) ** anios_futuro
+    return valor
+
 def construir_dataframe_inferencia(req: RequestIncidencia) -> pd.DataFrame:
     """
     Convierte el request JSON en un DataFrame de Pandas (1 fila x 4 columnas)
     con los nombres EXACTOS de las features que espera el ColumnTransformer.
     """
     return pd.DataFrame([{
-        "anio": req.anio,
-        "mes": req.mes,  # LA PIEZA CLAVE QUE FALTABA
+        "anio": req.anio - AÑO_BASE,
+        "mes": req.mes,
         "dpto_hecho_new": req.dpto_hecho_new,
         "es_delito_x": req.es_delito_x,
     }])
@@ -387,6 +412,97 @@ def obtener_graficos_modelo() -> Dict[str, Any]:
         )
     return graficos
 
+@app.get(f"{API_PREFIX}/model/comparacion", tags=["Modelo"])
+def obtener_comparacion_modelos() -> Dict[str, Any]:
+    """Retorna la comparación de métricas: Random Forest vs Regresión Lineal + Fairness."""
+    comparacion = _model_registry.get("comparacion")
+    if comparacion is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "error": "ComparacionNotAvailable",
+                "mensaje": "La comparación de modelos no está disponible. Ejecute el script de entrenamiento primero."
+            }
+        )
+    return comparacion
+
+@app.get(f"{API_PREFIX}/model/tendencia", tags=["Modelo"])
+def obtener_tendencia_dinamica(hasta: int = 2028) -> Dict[str, Any]:
+    """
+    Retorna datos históricos y proyectados para la gráfica de tendencia anual.
+    Query param: hasta (año hasta el cual proyectar, default 2028).
+    """
+    metrics = _model_registry.get("metrics")
+    if metrics is None:
+        raise HTTPException(status_code=404, detail="Métricas no disponibles")
+
+    historico = metrics.get("data_metrics", {}).get("historico_anual", {})
+    if not historico:
+        raise HTTPException(status_code=404, detail="Datos históricos no disponibles")
+
+    años_ordenados = sorted(int(k) for k in historico.keys())
+    valores_historicos = [historico[str(a)] for a in años_ordenados]
+
+    # Último año con data completa (excluye 2026 que es parcial)
+    años_completos = [a for a in años_ordenados if a <= 2025 and historico[str(a)] > 0]
+    ultimo_completo = años_completos[-1] if años_completos else años_ordenados[-1]
+    valor_base = historico[str(ultimo_completo)]
+
+    años_proyectados = list(range(2026, hasta + 1))
+    valores_proyectados = []
+    for i, year in enumerate(años_proyectados):
+        años_desde_base = year - ultimo_completo
+        valor = valor_base * (1 + TASA_CRECIMIENTO) ** años_desde_base
+        valores_proyectados.append(round(valor, 0))
+
+    # Incluir dato parcial 2026 real si existe
+    dato_parcial_2026 = historico.get("2026", 0)
+
+    data = [
+        {
+            "x": años_ordenados,
+            "y": valores_historicos,
+            "type": "scatter",
+            "mode": "lines+markers",
+            "name": "Histórico",
+            "line": {"color": "#3b82f6", "width": 3},
+            "marker": {"size": 8, "color": "#3b82f6"}
+        }
+    ]
+
+    if valores_proyectados:
+        data.append({
+            "x": [ultimo_completo] + años_proyectados,
+            "y": [valor_base] + valores_proyectados,
+            "type": "scatter",
+            "mode": "lines+markers",
+            "name": "Proyectado",
+            "line": {"color": "#ef4444", "width": 3, "dash": "dash"},
+            "marker": {"size": 8, "color": "#ef4444"}
+        })
+
+    if dato_parcial_2026 and 2026 in años_ordenados:
+        data.append({
+            "x": [2026],
+            "y": [dato_parcial_2026],
+            "type": "scatter",
+            "mode": "markers",
+            "name": "2026 (parcial real)",
+            "marker": {"size": 12, "color": "#f59e0b", "symbol": "star"}
+        })
+
+    layout = {
+        "title": {"text": "Tendencia Anual — Histórico y Proyectado"},
+        "xaxis": {"title": "Año", "dtick": 1},
+        "yaxis": {"title": "Total Delitos"},
+        "height": 450,
+        "showlegend": True,
+        "legend": {"orientation": "h", "y": -0.2},
+        "hovermode": "x unified"
+    }
+
+    return {"data": data, "layout": layout}
+
 @app.get(f"{API_PREFIX}/catalogos", tags=["Catálogos"])
 def obtener_catalogos() -> Dict[str, List[str]]:
     """Devuelve los catálogos oficiales para poblar selects en el Frontend."""
@@ -423,9 +539,10 @@ def realizar_prediccion(request: RequestIncidencia) -> ResponsePrediccion:
         array_prediccion = pipeline.predict(df_x)
         inference_time_ms = (time.perf_counter() - start_inference) * 1000
 
-        # Post-procesamiento (inverse log-transform)
+        # Post-procesamiento (inverse log-transform + tendencia futura)
         y_pred = float(np.expm1(array_prediccion[0]))
         y_pred_segura = max(0.0, round(y_pred, 2))
+        y_pred_segura = aplicar_tendencia_futura(y_pred_segura, request.anio)
         alerta = calcular_nivel_alerta(y_pred_segura)
 
         logger.info(f"✅ Inferencia completada: {y_pred_segura} delitos esperados. (Tomó {inference_time_ms:.3f} ms)")
@@ -483,9 +600,10 @@ def realizar_prediccion_general(request: RequestGeneral) -> Dict[str, Any]:
     es_un_mes = request.mes is not None
     start = time.perf_counter()
 
+    anio_transformado = request.anio - AÑO_BASE
     rows = []
     for d, t, m in product(deptos, tipos, meses):
-        rows.append({"anio": request.anio, "mes": m, "dpto_hecho_new": d, "es_delito_x": t})
+        rows.append({"anio": anio_transformado, "mes": m, "dpto_hecho_new": d, "es_delito_x": t})
 
     df = pd.DataFrame(rows)
     predictions = pipeline.predict(df)
@@ -503,12 +621,26 @@ def realizar_prediccion_general(request: RequestGeneral) -> Dict[str, Any]:
         tipo_total[t] += val
         mes_total[m] += val
 
+    # Aplicar tendencia futura sobre todos los agregados
+    factor_tendencia = (1 + TASA_CRECIMIENTO) ** max(0, request.anio - ULTIMO_ANIO_ENTRENAMIENTO)
+    if factor_tendencia != 1.0:
+        total *= factor_tendencia
+        for k in dpto_total: dpto_total[k] *= factor_tendencia
+        for k in tipo_total: tipo_total[k] *= factor_tendencia
+        for k in mes_total: mes_total[k] *= factor_tendencia
+
     inference_time_ms = (time.perf_counter() - start) * 1000
 
     dpto_max = max(dpto_total, key=dpto_total.get)
     tipo_max = max(tipo_total, key=tipo_total.get)
     mes_max = max(mes_total, key=mes_total.get) if not es_un_mes else request.mes
     alerta = calcular_nivel_alerta(total)
+
+    top_dptos = sorted(dpto_total.items(), key=lambda x: x[1], reverse=True)[:5]
+    top_departamentos = [{"departamento": d, "incidencias": round(v, 2)} for d, v in top_dptos]
+
+    top_tipos = sorted(tipo_total.items(), key=lambda x: x[1], reverse=True)[:3]
+    top_tipos_list = [{"tipo": t, "incidencias": round(v, 2)} for t, v in top_tipos]
 
     meses_nombres = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
                      "Julio","Agosto","Setiembre","Octubre","Noviembre","Diciembre"]
@@ -529,8 +661,11 @@ def realizar_prediccion_general(request: RequestGeneral) -> Dict[str, Any]:
         "departamento_mas_critico": dpto_max,
         "tipo_mas_critico": tipo_max,
         "mes_mas_critico": meses_nombres[mes_max - 1],
+        "top_departamentos": top_departamentos,
+        "top_tipos": top_tipos_list,
         "desglose_departamentos": {d: round(v, 2) for d, v in dpto_total.items()},
         "desglose_tipos": {t: round(v, 2) for t, v in tipo_total.items()},
+        "desglose_meses": {meses_nombres[m-1]: round(mes_total[m], 2) for m in meses},
         "total_combinaciones": len(rows),
         "departamentos_procesados": len(deptos),
         "tipos_procesados": len(tipos),

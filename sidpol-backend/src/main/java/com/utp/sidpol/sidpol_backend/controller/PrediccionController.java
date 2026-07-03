@@ -12,7 +12,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/predicciones")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:4200")
 public class PrediccionController {
 
     @Autowired
@@ -44,6 +44,20 @@ public class PrediccionController {
     public ResponseEntity<Map<String, Object>> obtenerGraficosModelo() {
         Map<String, Object> graficos = motorIaService.obtenerGraficos();
         return ResponseEntity.ok(graficos);
+    }
+
+    @GetMapping("/model/tendencia")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<Map<String, Object>> obtenerTendencia(@RequestParam int hasta) {
+        Map<String, Object> result = motorIaService.obtenerTendencia(hasta);
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/model/comparacion")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Object>> obtenerComparacion() {
+        Map<String, Object> result = motorIaService.obtenerComparacion();
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/incidencia/anual")

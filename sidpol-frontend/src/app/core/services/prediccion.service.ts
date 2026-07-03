@@ -67,6 +67,17 @@ export class PrediccionService {
     });
   }
 
+  obtenerTendencia(hasta: number): Observable<any> {
+    return this.http.get(`${this.API_URL}/model/tendencia`, {
+      headers: this.getHeaders(),
+      params: { hasta: hasta.toString() }
+    });
+  }
+
+  obtenerComparacion(): Observable<any> {
+    return this.http.get(`${this.API_URL}/model/comparacion`, { headers: this.getHeaders() });
+  }
+
   predecirGeneral(anio: number, dpto?: string, tipo?: string, mes?: number): Observable<any> {
     const body: any = { anio };
     if (dpto) body['dpto_hecho_new'] = dpto;
