@@ -2,6 +2,12 @@
 __pycache__/
 *.pyc
 *.pyo
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+venv/
+.venv/
 
 # Node
 node_modules/
@@ -26,3 +32,9 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Windows artifacts
+nul
+
+# Generated ML artifacts (reproducible)
+motor_Sidpol/*.log
