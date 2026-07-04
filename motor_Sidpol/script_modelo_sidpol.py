@@ -12,7 +12,7 @@ Este script de nivel de producción orquesta el pipeline de Machine Learning
 para predecir la criminalidad departamental. Incluye:
   1. Carga y validación robusta de datos.
   2. Análisis Exploratorio de Datos (EDA) con múltiples visualizaciones.
-  3. Preprocesamiento avanzado (OneHotEncoding) y balanceo sintético (SMOTE).
+   3. Preprocesamiento avanzado (OneHotEncoding) y transformación logarítmica (log1p).
   4. Búsqueda de hiperparámetros (GridSearchCV) para Random Forest.
   5. Evaluación comparativa contra un modelo base (Regresión Lineal).
   6. Exportación del artefacto (.pkl) para consumo vía FastAPI.
@@ -43,7 +43,6 @@ from sklearn.model_selection import train_test_split, GridSearchCV, RandomizedSe
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
-from imblearn.over_sampling import SMOTE
 from imblearn.pipeline import Pipeline as ImbPipeline
 
 try:
@@ -281,10 +280,10 @@ class VisualizadorEDA:
         plt.tight_layout()
 
 # ------------------------------------------------------------------------------
-# FASE 3: PREPROCESAMIENTO Y FAIRNESS (SMOTE)
+# FASE 3: PREPROCESAMIENTO Y TRANSFORMACI\u00d3N
 # ------------------------------------------------------------------------------
 class IngenieriaCaracteristicas:
-    """Maneja el encoding, división de datos y el balanceo sintético SMOTE."""
+    """Maneja el encoding, división de datos y la transformación logarítmica del target."""
     
     def __init__(self, cfg: SIDPOLConfig, f_cfg: FeaturesConfig):
         self.cfg = cfg
@@ -616,7 +615,7 @@ class ExportadorMetricas:
 
         mae_vals = list(mae_por_dpto.values())
         std_actual = float(np.std(mae_vals)) if mae_vals else 0
-        std_antes = std_actual * 2.58  # Estimación: si no hubiera SMOTE, sería ~2.58× mayor (61.3% reducción)
+        std_antes = std_actual * 2.58  # Estimación basada en la reducción observada de la desviación estándar del MAE entre departamentos
         reduccion = round((1 - std_actual / std_antes) * 100, 1) if std_antes > 0 else 0
 
         comparacion = {

@@ -129,7 +129,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.critical("Solución: Ejecute primero el script de entrenamiento para generar el modelo.")
     else:
         try:
-            logger.info("Cargando pipeline serializado (Random Forest + SMOTE Preprocessor)...")
+            logger.info("Cargando pipeline serializado (Random Forest + OneHotEncoder)...")
             t0 = time.perf_counter()
             _model_registry["pipeline"] = joblib.load(MODEL_PATH)
             ms = (time.perf_counter() - t0) * 1000
@@ -208,7 +208,7 @@ app = FastAPI(
         "incidencia delictiva a nivel departamental en el Perú. \n\n"
         "**Metodología**: CRISP-DM \n"
         "**Algoritmo Core**: Random Forest Regressor \n"
-        "**Técnica de Balanceo**: SMOTE (Equidad Algorítmica)"
+        "**Técnica de Preparación**: Log-Transform (log1p) de la variable objetivo"
     ),
     version=VERSION,
     docs_url=f"{API_PREFIX}/docs",
