@@ -36,5 +36,14 @@ Thumbs.db
 # Windows artifacts
 nul
 
+# Temporary Office files
+~$*.docx
+~$*.xlsx
+~$*.pptx
+
+# Generic temp files
+~WRL*.tmp
+~*.tmp
+
 # Generated ML artifacts (reproducible)
 motor_Sidpol/*.log
