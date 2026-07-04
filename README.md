@@ -502,8 +502,8 @@ Initial total: X.XX MB
 
 | Rol | Usuario | Contraseña |
 |-----|---------|-----------|
-| **Admin** | `admin` | `admin123` |
-| **Usuario** | `usuario` | `usuario123` |
+| **Admin** | `admin@sidpol.com` | `admin123` |
+| **Usuario** | `usuario@sidpol.com` | `usuario123` |
 
 ---
 
@@ -575,7 +575,7 @@ curl -X POST http://localhost:8000/api/v1/predict/incidencia \
 
 **Login de ejemplo:**
 ```powershell
-Invoke-RestMethod -Uri http://localhost:8080/api/auth/login -Method Post -Body '{"username":"admin","password":"admin123"}' -ContentType "application/json"
+Invoke-RestMethod -Uri http://localhost:8080/api/auth/login -Method Post -Body '{"username":"admin@sidpol.com","password":"admin123"}' -ContentType "application/json"
 ```
 
 **Respuesta:** Incluye el token JWT que se usa en el header `Authorization: Bearer <token>`.
